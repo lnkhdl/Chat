@@ -1,0 +1,1 @@
+This is a small project written in Java to learn basics of Client-Server architecture.
