@@ -21,21 +21,33 @@ public class Server {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             log.info("Server started on port: {}! Waiting for clients to connect...", port);
             while(true) {
-                try (Socket clientSocket = serverSocket.accept()) {
+                try (
+                        Socket clientSocket = serverSocket.accept();
+                        PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+                        BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                ) {
                     log.info("New client connected from port {}.", clientSocket.getPort());
 
-                    BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                    PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+                    if (in.readLine().startsWith("Hi")) {
+                        out.println("Hi Client, you are connected.");
+                        log.info("Greeted the new client.");
+                    }
 
-                    String message = in.readLine();
-                    log.info("Received: {}", message);
-                    out.println("Message received: " + message);
+                    String inputLine;
+                    while ((inputLine = in.readLine()) != null) {
+                        log.info("Received from Client: {}", inputLine);
+                        out.println(inputLine);
+                        log.info("Server sent response.");
+                    }
                 } catch (IOException e) {
-                    log.warn("Error occurred when a client connected: {}", e.getMessage());
+                    log.error("Error occurred when communicating with the client: {}", e.getMessage());
+                    System.exit(1);
                 }
             }
         } catch (IOException e) {
-            log.warn("Error occurred when waiting for the clients to connect: {}", e.getMessage());
+            log.error("Error occurred when waiting for the clients to connect: IO error when opening the socket. Error: {}",
+                    e.getMessage());
+            System.exit(1);
         }
     }
 }
