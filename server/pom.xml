@@ -20,8 +20,13 @@
 
     <dependencies>
         <dependency>
+            <groupId>com.lnkhdl.chat</groupId>
+            <artifactId>common</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
@@ -54,7 +59,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>com.lnkhdl.chat.ServerApp</mainClass>
+                            <mainClass>com.lnkhdl.chat.server.ServerApp</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
