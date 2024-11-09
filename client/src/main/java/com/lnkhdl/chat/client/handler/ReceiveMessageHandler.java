@@ -13,7 +13,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 
 @Slf4j
-public class ReceiveMessageHandler extends MessageHandler implements Runnable {
+public class ReceiveMessageHandler extends MessageHandler {
     private final Client client;
     private final BufferedReader receiver;
     private final PrintWriter sender;
@@ -41,6 +41,9 @@ public class ReceiveMessageHandler extends MessageHandler implements Runnable {
                     switch (receivedType) {
                         case SET_USERNAME:
                             log.debug("SET_USERNAME entered");
+                            // The communication starts now, anything written to the CMD before by the client, when being in the queue, is outputted
+                            clearInputBuffer();
+
                             System.out.println("> Please enter your username.");
                             processInputUsername(sender, clientInput);
                             break;
@@ -81,10 +84,21 @@ public class ReceiveMessageHandler extends MessageHandler implements Runnable {
                             System.out.println("> " + receivedText);
                             break;
 
+                        case IN_SERVER_QUEUE:
+                            log.debug("IN_SERVER_QUEUE entered");
+                            System.out.println("> " + receivedText);
+                            break;
+
+                        case SERVER_MAX_CAPACITY:
+                            log.debug("SERVER_MAX_CAPACITY entered");
+                            System.out.println("> " + receivedText);
+                            System.exit(2);
+                            break;
+
                         case SERVER_CLOSED:
                             log.debug("SERVER_CLOSED entered");
                             System.out.println("> " + receivedText);
-                            System.exit(2);
+                            System.exit(3);
                             break;
 
                         default:
@@ -126,5 +140,16 @@ public class ReceiveMessageHandler extends MessageHandler implements Runnable {
 
     private void sendUsername(PrintWriter sender, String username) {
         sender.println(Protocol.formatMessage(Type.SET_USERNAME, username));
+    }
+
+    private void clearInputBuffer() {
+        log.info("Cleaning the input buffer.");
+        try {
+            while (clientInput.ready()) {
+                clientInput.readLine(); // Discard all lines in the buffer by sending it to the client
+            }
+        } catch (IOException e) {
+            log.error("Error clearing the input buffer: {}", e.getMessage());
+        }
     }
 }

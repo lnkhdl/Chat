@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 
 @Slf4j
-public class SendMessageHandler extends MessageHandler implements Runnable {
+public class SendMessageHandler extends MessageHandler {
     private final BufferedReader clientInput;
     private final PrintWriter sender;
 
@@ -29,7 +29,7 @@ public class SendMessageHandler extends MessageHandler implements Runnable {
                         System.err.println("> The message cannot be empty.");
                     } else if (userInput.equalsIgnoreCase("/exit")) {
                         log.debug("User requested to exit. Stopping client...");
-                        // The shutdown hook will be triggered by this exit
+                        // The shutdown hook will be triggered by this exit - this should be rework
                         System.exit(0);
                         break;
                     } else if (userInput.startsWith(Protocol.PRIVATE_MESSAGE_MARK)) {

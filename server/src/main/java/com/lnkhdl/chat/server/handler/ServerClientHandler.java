@@ -1,4 +1,4 @@
-package com.lnkhdl.chat.server;
+package com.lnkhdl.chat.server.handler;
 
 import com.lnkhdl.chat.common.exception.InvalidProtocolException;
 import com.lnkhdl.chat.common.message.Protocol;
@@ -6,11 +6,11 @@ import com.lnkhdl.chat.common.message.Type;
 
 import com.lnkhdl.chat.common.name.NameValidationResult;
 import com.lnkhdl.chat.common.name.NameValidator;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.List;
@@ -20,10 +20,11 @@ import java.util.Set;
 public class ServerClientHandler implements Runnable {
 
     private final Socket clientSocket;
-    private final List<ServerClientHandler> clients;
+    private final List<ServerClientHandler> clientHandlers;
     private final Set<String> clientNames;
     private String clientName;
 
+    @Getter
     private final PrintWriter sender;
     private final BufferedReader receiver;
 
@@ -33,12 +34,12 @@ public class ServerClientHandler implements Runnable {
     // Once username is successfully set, a client is marked as active, and it can receive messages.
     private boolean isActive;
 
-    public ServerClientHandler(Socket clientSocket, Set<String> sharedClientNames, List<ServerClientHandler> clients) throws IOException {
+    public ServerClientHandler(Socket clientSocket, Set<String> clientNames, List<ServerClientHandler> clientHandlers, PrintWriter sender, BufferedReader receiver) throws IOException {
         this.clientSocket = clientSocket;
-        this.clientNames = sharedClientNames;
-        this.clients = clients;
-        this.sender = new PrintWriter(this.clientSocket.getOutputStream(), true);
-        this.receiver = new BufferedReader(new InputStreamReader(this.clientSocket.getInputStream()));
+        this.clientNames = clientNames;
+        this.clientHandlers = clientHandlers;
+        this.sender = sender;
+        this.receiver = receiver;
         this.running = true;
         this.isActive = false;
     }
@@ -84,13 +85,13 @@ public class ServerClientHandler implements Runnable {
                             sender.println(Protocol.formatMessage(Type.MESSAGE, "To send a private message, use the following format: /w username message."));
                             sender.println(Protocol.formatMessage(Type.MESSAGE, "Type /exit to close the application."));
                             log.info("The client has been added to the list. The list of clients: {}", clientNames);
-                            sendMessageToEveryone("New user connected: " + sanitizedName, Type.MESSAGE, false, false);
+                            sendMessageToEveryone("New user connected: " + sanitizedName, false, false);
                         }
                         break;
 
                     case MESSAGE:
                         log.debug("MESSAGE entered");
-                        sendMessageToEveryone(receivedText, Type.MESSAGE, true, true);
+                        sendMessageToEveryone(receivedText, true, true);
                         break;
 
                     case PRIVATE_MESSAGE:
@@ -156,23 +157,28 @@ public class ServerClientHandler implements Runnable {
             log.error("Error closing client socket: {}", e.getMessage());
         }
 
-        if (clientName != null && clientNames.contains(clientName)) {
-            clientNames.remove(clientName);
-            log.info("Client '{}' has been removed from the list. Updated list: {}", clientName, clientNames);
+        synchronized (clientNames) {
+            // A synchronized block is necessary because this code performs a compound operation involving multiple actions on the shared clientNames set (check-then-remove operation).
+            if (clientName != null && clientNames.contains(clientName)) {
+                clientNames.remove(clientName);
+                log.info("Client '{}' has been removed from the list. Updated list: {}", clientName, clientNames);
+            }
         }
 
         // This uses threads of other ServerClientHandler
-        sendMessageToEveryone(clientName + " has left the chat.", Type.MESSAGE, false, false);
+        if (clientName != null) {
+            sendMessageToEveryone(clientName + " has left the chat.", false, false);
+        }
 
-        clients.remove(this);
+        clientHandlers.remove(this);
 
         log.info("ServerClientHandler stopped for client: {}", clientName);
     }
 
-    protected void sendMessageToEveryone(String messageText, Type messageType, boolean sendToCurrentClient, boolean includeUsername) {
+    private void sendMessageToEveryone(String messageText, boolean sendToCurrentClient, boolean includeUsername) {
         String message = includeUsername ? clientName + " " + messageText : messageText;
-        String formattedMessage = Protocol.formatMessage(messageType, message);
-        for (ServerClientHandler client : clients) {
+        String formattedMessage = Protocol.formatMessage(Type.MESSAGE, message);
+        for (ServerClientHandler client : clientHandlers) {
             if (!sendToCurrentClient && client == this) {
                 continue;
             }
@@ -183,7 +189,7 @@ public class ServerClientHandler implements Runnable {
     }
 
     private void sendPrivateMessage(String targetClientName, String messageText) {
-        for (ServerClientHandler client : clients) {
+        for (ServerClientHandler client : clientHandlers) {
             if (targetClientName.equals(client.clientName) && client.isActive) {
                 client.sender.println(Protocol.formatMessage(Type.PRIVATE_MESSAGE, "[private] " + clientName + ": " + messageText));
                 break;
@@ -192,18 +198,24 @@ public class ServerClientHandler implements Runnable {
     }
 
     private boolean doesUsernameExist(String username) {
+        // Thread-safe due to synchronizedSet (individual operations like contains, add, and remove are thread-safe)
         return clientNames.contains(username);
     }
 
     private boolean saveUsername(String username) {
-        if (clientNames.add(username)) {
-            clientName = username;
-            return true;
+        synchronized (clientNames) {
+            if (clientNames.add(username)) {
+                clientName = username;
+                return true;
+            }
         }
         return false;
     }
 
     private String getMessageTextWithClientNames() {
-        return "Connected users: " + String.join(", ", clientNames);
+        // Lock the set to prevent concurrent modification issues since String.join implicitly iterates over clientNames to create a single joined string.
+        synchronized (clientNames) {
+            return "Connected users: " + String.join(", ", clientNames);
+        }
     }
 }

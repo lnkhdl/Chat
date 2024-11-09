@@ -37,3 +37,6 @@ build/
 
 ### Logs ###
 _logs/
+
+### Others ###
+notes.txt
