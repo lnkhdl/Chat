@@ -153,5 +153,4 @@ public class ServerClientHandlerTest {
         verify(mockSender, never()).println(anyString());
         verify(spyHandler).stop();
     }
-
 }

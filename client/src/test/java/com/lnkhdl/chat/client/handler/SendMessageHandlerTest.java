@@ -31,7 +31,7 @@ class SendMessageHandlerTest {
     void testMessageSending() throws IOException, InterruptedException {
         when(mockClientInput.readLine())
                 .thenReturn("Hello World")
-                .thenReturn(null); // without this null, it keeps processing the same first message, might be an issue in the if condition in the code
+                .thenReturn(null); // without this null, it keeps processing the same first message
         startStopHandler();
         verify(mockSender).println("MESSAGE::Hello World");
         verifyNoMoreInteractions(mockSender);

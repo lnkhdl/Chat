@@ -30,7 +30,7 @@ public class MessageHandlerTest {
         try {
             // The join(100) method tells the current thread (in this case, the test thread) to wait for up to 100 milliseconds for the handler.getWorker() thread to finish its execution.
             // If handler.getWorker() finishes within this 100 milliseconds, the test proceeds immediately.
-            //  If it does not, the test moves on after waiting for this period.
+            // If it does not, the test moves on after waiting for this period.
             handler.getWorker().join(100);
         } catch (InterruptedException e) {
             // The join method can throw an InterruptedException if the waiting thread (the test thread) is interrupted before the worker thread finishes or the timeout period elapses.
